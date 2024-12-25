@@ -23,7 +23,7 @@ const Dashboard = () => {
         <div className="w-32 h-32 mx-auto rounded-full overflow-hidden bg-gray-200">
           {/* Profile photo will be fetched separately through the profile endpoint */}
           <img
-            src={`http://localhost:8000/profile/photo/${user?.id}`}
+            src={`http://localhost:8000/profile/${user?.id}`}
             alt="Profile"
             className="w-full h-full object-cover"
           />
@@ -37,26 +37,48 @@ const Dashboard = () => {
     const handleScan = async () => {
       try {
         setIsScanning(true);
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'user'
+          }
+        });
+
+        // Create video element
         const video = document.createElement('video');
         video.srcObject = stream;
-        await video.play();
+        video.setAttribute('playsinline', 'true'); // required for iOS
+        
+        // Wait for video to be ready
+        await new Promise((resolve) => {
+          video.onloadedmetadata = () => {
+            video.play().then(resolve);
+          };
+        });
 
-        // Capture frame from video
+        // Create canvas and capture frame
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        canvas.getContext('2d')?.drawImage(video, 0, 0);
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+          throw new Error('Could not get canvas context');
+        }
+
+        // Draw the video frame to canvas
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         // Convert to blob
         const blob = await new Promise<Blob>((resolve) => 
-          canvas.toBlob((blob) => resolve(blob!), 'image/jpeg')
+          canvas.toBlob((blob) => resolve(blob!), 'image/jpeg', 0.95)
         );
 
         // Stop video stream
         stream.getTracks().forEach(track => track.stop());
 
-        // Send to backend
+        // Create form data and send to backend
         const formData = new FormData();
         formData.append('photo', blob, 'scan.jpg');
 
@@ -73,6 +95,7 @@ const Dashboard = () => {
         setScannedPerson(matchedPerson);
         toast.success('Person found!');
       } catch (error) {
+        console.error('Scan error:', error);
         toast.error('No matching person found');
         setScannedPerson(null);
       } finally {
