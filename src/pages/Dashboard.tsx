@@ -21,16 +21,14 @@ const Dashboard = () => {
     <div className="space-y-4">
       <div className="text-center">
         <div className="w-32 h-32 mx-auto rounded-full overflow-hidden bg-gray-200">
-          {user?.photoUrl && (
-            <img
-              src={user.photoUrl}
-              alt="Profile"
-              className="w-full h-full object-cover"
-            />
-          )}
+          {/* Profile photo will be fetched separately through the profile endpoint */}
+          <img
+            src={`http://localhost:8000/profile/photo/${user?.id}`}
+            alt="Profile"
+            className="w-full h-full object-cover"
+          />
         </div>
-        <h2 className="mt-4 text-xl font-semibold">{user?.name}</h2>
-        <p className="text-gray-600">{user?.email}</p>
+        <h2 className="mt-4 text-xl font-semibold">{user?.email}</h2>
       </div>
     </div>
   );
