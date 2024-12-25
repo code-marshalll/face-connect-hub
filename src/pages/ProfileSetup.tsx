@@ -1,12 +1,15 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 
 const ProfileSetup = () => {
+  const { user } = useAuth();
   const [name, setName] = useState('');
+  const [additionalInfo, setAdditionalInfo] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -52,7 +55,27 @@ const ProfileSetup = () => {
     }
 
     try {
-      // TODO: Replace with actual API call
+      // Convert base64 to blob
+      const response = await fetch(photo);
+      const blob = await response.blob();
+
+      // Create FormData
+      const formData = new FormData();
+      formData.append('photo', blob, 'profile.jpg');
+      formData.append('profile', JSON.stringify({
+        full_name: name,
+        additional_info: additionalInfo
+      }));
+
+      const apiResponse = await fetch(`http://localhost:8000/profile/setup/${user?.id}`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!apiResponse.ok) {
+        throw new Error('Failed to update profile');
+      }
+
       toast.success('Profile updated successfully');
       navigate('/dashboard');
     } catch (error) {
@@ -111,6 +134,13 @@ const ProfileSetup = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Additional Information</label>
+                <Input
+                  value={additionalInfo}
+                  onChange={(e) => setAdditionalInfo(e.target.value)}
                 />
               </div>
             </div>

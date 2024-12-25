@@ -1,11 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface User {
-  id: string;
+  id: number;
   email: string;
-  name?: string;
-  photoUrl?: string;
 }
 
 interface AuthContextType {
@@ -22,7 +21,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check local storage for existing session
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       setUser(JSON.parse(storedUser));
@@ -31,26 +29,50 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      // TODO: Replace with actual API call
-      const mockUser = { id: '1', email };
-      setUser(mockUser);
-      localStorage.setItem('user', JSON.stringify(mockUser));
+      const response = await fetch('http://localhost:8000/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Login failed');
+      }
+
+      const userData = await response.json();
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
       navigate('/profile-setup');
+      toast.success('Logged in successfully');
     } catch (error) {
-      console.error('Login failed:', error);
+      toast.error('Login failed');
       throw error;
     }
   };
 
   const signup = async (email: string, password: string) => {
     try {
-      // TODO: Replace with actual API call
-      const mockUser = { id: '1', email };
-      setUser(mockUser);
-      localStorage.setItem('user', JSON.stringify(mockUser));
+      const response = await fetch('http://localhost:8000/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Signup failed');
+      }
+
+      const userData = await response.json();
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
       navigate('/profile-setup');
+      toast.success('Account created successfully');
     } catch (error) {
-      console.error('Signup failed:', error);
+      toast.error('Signup failed');
       throw error;
     }
   };
@@ -59,6 +81,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(null);
     localStorage.removeItem('user');
     navigate('/login');
+    toast.success('Logged out successfully');
   };
 
   return (

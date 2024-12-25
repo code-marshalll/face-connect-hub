@@ -3,10 +3,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from 'sonner';
+
+interface MatchedPerson {
+  user_id: number;
+  full_name: string;
+  additional_info: string;
+}
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
+  const [isScanning, setIsScanning] = useState(false);
+  const [scannedPerson, setScannedPerson] = useState<MatchedPerson | null>(null);
 
   const ProfileTab = () => (
     <div className="space-y-4">
@@ -27,15 +36,50 @@ const Dashboard = () => {
   );
 
   const ScanTab = () => {
-    const [isScanning, setIsScanning] = useState(false);
-    const [scannedPerson, setScannedPerson] = useState(null);
+    const handleScan = async () => {
+      try {
+        setIsScanning(true);
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        await video.play();
 
-    const handleScan = () => {
-      setIsScanning(true);
-      // TODO: Implement scanning logic
-      setTimeout(() => {
+        // Capture frame from video
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d')?.drawImage(video, 0, 0);
+
+        // Convert to blob
+        const blob = await new Promise<Blob>((resolve) => 
+          canvas.toBlob((blob) => resolve(blob!), 'image/jpeg')
+        );
+
+        // Stop video stream
+        stream.getTracks().forEach(track => track.stop());
+
+        // Send to backend
+        const formData = new FormData();
+        formData.append('photo', blob, 'scan.jpg');
+
+        const response = await fetch('http://localhost:8000/scan/face', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('No match found');
+        }
+
+        const matchedPerson = await response.json();
+        setScannedPerson(matchedPerson);
+        toast.success('Person found!');
+      } catch (error) {
+        toast.error('No matching person found');
+        setScannedPerson(null);
+      } finally {
         setIsScanning(false);
-      }, 2000);
+      }
     };
 
     return (
@@ -49,6 +93,13 @@ const Dashboard = () => {
             {isScanning ? 'Scanning...' : 'Start Scan'}
           </Button>
         </div>
+        {scannedPerson && (
+          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+            <h3 className="font-semibold">Match Found:</h3>
+            <p>Name: {scannedPerson.full_name}</p>
+            <p>Additional Info: {scannedPerson.additional_info}</p>
+          </div>
+        )}
       </div>
     );
   };
